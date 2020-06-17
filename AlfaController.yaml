@@ -1,0 +1,91 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: alfacontrollers.controllers.illallangi.enterprises
+spec:
+  group: controllers.illallangi.enterprises
+  names:
+    kind: AlfaController
+    plural: alfacontrollers
+    shortNames:
+    - alfacontroller
+    singular: alfacontroller
+  scope: Namespaced
+  versions:
+  - name: v1beta
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              core:
+                properties:
+                  namespace:
+                    default: false
+                    type: boolean
+                  secret:
+                    default: false
+                    type: boolean
+                type: object
+              crds:
+                items:
+                  type: string
+                type: array
+              templates:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alfacontroller
+  namespace: kube-system
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: alfacontroller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: alfacontroller
+    namespace: kube-system
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alfacontroller
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alfacontroller
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alfacontroller
+    spec:
+      containers:
+        - name: alfacontroller
+          image: illallangi/alfacontroller:latest
+      serviceAccountName: alfacontroller
