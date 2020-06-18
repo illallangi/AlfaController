@@ -109,17 +109,17 @@ def tick(hashes):
     if (controller['spec'].get('core') or {}).get('namespace') or False:
       for ns in nss:
         obj = coreV1Api.read_namespace(ns.metadata.name)
-        objects.append(obj)
+        objects.append(obj.to_dict())
     
     if (controller['spec'].get('core') or {}).get('secret') or False:
       for secret in secrets:
         obj = coreV1Api.read_namespaced_secret(secret.metadata.name, secret.metadata.namespace)
-        objects.append(obj)
+        objects.append(obj.to_dict())
     
     if (controller['spec'].get('core') or {}).get('service') or False:
       for service in services:
         obj = coreV1Api.read_namespaced_service(service.metadata.name, service.metadata.namespace)
-        objects.append(obj)
+        objects.append(obj.to_dict())
     
     # Retrieve CustomResourceDefinitions
     logging.info(' - Retrieving CustomResourceDefinitions')
