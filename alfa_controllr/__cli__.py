@@ -84,8 +84,8 @@ def tick(hashes):
       try:
         objs = (customObjectsApi.list_namespaced_custom_object('controllers.illallangi.enterprises', 'v1beta', ns.metadata.name, 'alfacontrollrs').get('items') or [])
       except kubernetes.client.rest.ApiException as e:
-        logging.error(f'Unable to get Alfa Controllrs ({e.reason}) in {ns.metadata.name}, aborting')
-        return
+        logging.error(f'Unable to get Alfa Controllrs ({e.reason}) in {ns.metadata.name}, skipping this namespace')
+        continue
       for obj in objs:
         if not obj['kind']=='AlfaControllr': continue
         controllers.append(obj)
