@@ -18,7 +18,7 @@ ADD . /usr/src/app
 
 RUN pip3 install .
 
-ENTRYPOINT ["/usr/local/bin/alfa-controller"]
+ENTRYPOINT ["/usr/local/bin/alfa-controllr"]
 
 ARG VCS_REF
 ARG VERSION
@@ -26,11 +26,11 @@ ARG BUILD_DATE
 LABEL maintainer="Andrew Cole <andrew.cole@illallangi.com>" \
       org.label-schema.build-date=${BUILD_DATE} \
       org.label-schema.description="Creates Kubernetes resources by processing custom resources through a Jinja2 template" \
-      org.label-schema.name="AlfaController" \
+      org.label-schema.name="AlfaControllr" \
       org.label-schema.schema-version="1.0" \
-      org.label-schema.url="http://github.com/illallangi/AlfaController" \
-      org.label-schema.usage="https://github.com/illallangi/AlfaController/blob/master/README.md" \
+      org.label-schema.url="http://github.com/illallangi/AlfaControllr" \
+      org.label-schema.usage="https://github.com/illallangi/AlfaControllr/blob/master/README.md" \
       org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.vcs-url="https://github.com/illallangi/AlfaController" \
+      org.label-schema.vcs-url="https://github.com/illallangi/AlfaControllr" \
       org.label-schema.vendor="Illallangi Enterprises" \
       org.label-schema.version=$VERSION

@@ -2,15 +2,15 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: alfacontrollers.controllers.illallangi.enterprises
+  name: alfacontrollrs.controllers.illallangi.enterprises
 spec:
   group: controllers.illallangi.enterprises
   names:
-    kind: AlfaController
-    plural: alfacontrollers
+    kind: AlfaControllr
+    plural: alfacontrollrs
     shortNames:
-    - alfacontroller
-    singular: alfacontroller
+    - alfacontrollr
+    singular: alfacontrollr
   scope: Namespaced
   versions:
   - name: v1beta
@@ -50,42 +50,42 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: alfacontroller
+  name: alfacontrollr
   namespace: kube-system
 
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: alfacontroller
+  name: alfacontrollr
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
   - kind: ServiceAccount
-    name: alfacontroller
+    name: alfacontrollr
     namespace: kube-system
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: alfacontroller
+  name: alfacontrollr
   namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: alfacontroller
+      app.kubernetes.io/name: alfacontrollr
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: alfacontroller
+        app.kubernetes.io/name: alfacontrollr
     spec:
       containers:
-        - name: alfacontroller
-          image: illallangi/alfacontroller:latest
-      serviceAccountName: alfacontroller
+        - name: alfacontrollr
+          image: illallangi/alfacontrollr:latest
+      serviceAccountName: alfacontrollr
