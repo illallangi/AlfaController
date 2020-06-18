@@ -13,6 +13,7 @@ import time
 import yaml
 import jmespath
 
+from netaddr import IPAddress
 from subprocess import PIPE, run
 
 DEBUG           = bool(distutils.util.strtobool(os.environ.get('DEBUG', 'no')))
@@ -54,6 +55,7 @@ def tick(hashes):
   j2environment = jinja2.Environment(loader=jinja2.BaseLoader)
   # add b64decode filter to jinja2 env
   j2environment.filters['b64decode'] = base64.b64decode
+  j2environment.filters['ipaddr'] = ipaddr
   j2environment.filters['json_query'] = json_query
   
   # Retrieve Namespaces
@@ -197,6 +199,11 @@ yaml.Dumper.add_representer(six.text_type, string_representer)
 
 def json_query(v, f):
   return jmespath.search(f, v)
+
+def ipaddr(value, action):
+  if action == "revdns":
+    return IPAddress(value).reverse_dns.strip('.')
+  raise NotImplementedError
 
 if __name__ == "__main__":
   main()
