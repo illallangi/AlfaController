@@ -71,6 +71,15 @@ def tick(hashes):
     logging.info(e)
     return
   
+  # Retrieve Services
+  logging.info('Retrieving Services:')
+  try:
+    services = (coreV1Api.list_service_for_all_namespaces().items or [])
+  except kubernetes.client.rest.ApiException as e:
+    logging.warning('   - Unable to retrieve services, aborting')
+    logging.info(e)
+    return
+  
   controllers = []  
   if CONTROLLERS:
     with open(os.path.realpath(CONTROLLERS), 'r') as file:
@@ -105,6 +114,11 @@ def tick(hashes):
     if (controller['spec'].get('core') or {}).get('secret') or False:
       for secret in secrets:
         obj = coreV1Api.read_namespaced_secret(secret.metadata.name, secret.metadata.namespace)
+        objects.append(obj)
+    
+    if (controller['spec'].get('core') or {}).get('service') or False:
+      for service in services:
+        obj = coreV1Api.read_namespaced_service(service.metadata.name, service.metadata.namespace)
         objects.append(obj)
     
     # Retrieve CustomResourceDefinitions
