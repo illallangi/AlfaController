@@ -11,6 +11,9 @@ import schedule
 import six
 import time
 import yaml
+import jmespath
+
+from netaddr import IPAddress
 from subprocess import PIPE, run
 
 DEBUG           = bool(distutils.util.strtobool(os.environ.get('DEBUG', 'no')))
@@ -52,6 +55,9 @@ def tick(hashes):
   j2environment = jinja2.Environment(loader=jinja2.BaseLoader)
   # add b64decode filter to jinja2 env
   j2environment.filters['b64decode'] = base64.b64decode
+  j2environment.filters['ipaddr'] = ipaddr
+  j2environment.filters['json_query'] = json_query
+  j2environment.filters['unique_dict'] = unique_dict
   
   # Retrieve Namespaces
   logging.info('Retrieving Namespaces:')
@@ -205,6 +211,18 @@ def string_representer(dumper, value):
     return dumper.represent_scalar("tag:yaml.org,2002:str", value, style="'")
   return dumper.represent_scalar("tag:yaml.org,2002:str", value)
 yaml.Dumper.add_representer(six.text_type, string_representer)
+
+def json_query(v, f):
+  return jmespath.search(f, v)
+
+def unique_dict(v):
+  result = [dict(s) for s in set(frozenset(d.items()) for d in v)]
+  return result
+
+def ipaddr(value, action):
+  if action == "revdns":
+    return IPAddress(value).reverse_dns.strip('.')
+  raise NotImplementedError
 
 if __name__ == "__main__":
   main()
