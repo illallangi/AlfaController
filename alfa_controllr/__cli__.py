@@ -57,6 +57,7 @@ def tick(hashes):
   j2environment.filters['b64decode'] = base64.b64decode
   j2environment.filters['ipaddr'] = ipaddr
   j2environment.filters['json_query'] = json_query
+  j2environment.filters['unique_dict'] = unique_dict
   
   # Retrieve Namespaces
   logging.info('Retrieving Namespaces:')
@@ -199,6 +200,10 @@ yaml.Dumper.add_representer(six.text_type, string_representer)
 
 def json_query(v, f):
   return jmespath.search(f, v)
+
+def unique_dict(v):
+  result = [dict(s) for s in set(frozenset(d.items()) for d in v)]
+  return result
 
 def ipaddr(value, action):
   if action == "revdns":
