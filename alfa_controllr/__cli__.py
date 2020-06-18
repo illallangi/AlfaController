@@ -76,23 +76,23 @@ def tick(hashes):
     with open(os.path.realpath(CONTROLLERS), 'r') as file:
       objs = yaml.load(file, Loader=yaml.FullLoader).get('items') or []
       for obj in objs:
-        if not obj['kind']=='AlfaController': continue
+        if not obj['kind']=='AlfaControllr': continue
         controllers.append(obj)
-    logging.info(f'Loaded {len(controllers)} controllers from {os.path.realpath(CONTROLLERS)}')
+    logging.info(f'Loaded {len(controllers)} Alfa Controllrs from {os.path.realpath(CONTROLLERS)}')
   else:
     for ns in nss:
       try:
-        objs = (customObjectsApi.list_namespaced_custom_object('controllers.illallangi.enterprises', 'v1beta', ns.metadata.name, 'alfacontrollers').get('items') or [])
+        objs = (customObjectsApi.list_namespaced_custom_object('controllers.illallangi.enterprises', 'v1beta', ns.metadata.name, 'alfacontrollrs').get('items') or [])
       except kubernetes.client.rest.ApiException as e:
-        logging.error(f'Unable to get "alfacontrollers" ({e.reason}) in {ns.metadata.name}, aborting')
+        logging.error(f'Unable to get Alfa Controllrs ({e.reason}) in {ns.metadata.name}, aborting')
         return
       for obj in objs:
-        if not obj['kind']=='AlfaController': continue
+        if not obj['kind']=='AlfaControllr': continue
         controllers.append(obj)
-    logging.info(f'Loaded {len(controllers)} controllers from Kubernetes API')
+    logging.info(f'Loaded {len(controllers)} Alfa Controllrs from Kubernetes API')
     
   for controller in controllers:
-    logging.info(f'Controller "{controller["metadata"]["name"]}":')
+    logging.info(f'Alfa Controllr "{controller["metadata"]["name"]}":')
     
     # Create empty objects array
     objects = []
@@ -135,7 +135,7 @@ def tick(hashes):
           try:
             objs = (customObjectsApi.list_namespaced_custom_object(crd['group'], crd['versions'][0]['name'], ns.metadata.name, crd['names']['plural']).get('items') or [])
           except kubernetes.client.rest.ApiException as e:
-            logging.error(f'Controller "{controller["metadata"]["name"]}" unable to get "{crd["names"]["plural"]}" ({e.reason}) in {ns.metadata.name}, skipping this namespace')
+            logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to get "{crd["names"]["plural"]}" ({e.reason}) in {ns.metadata.name}, skipping this namespace')
             continue
           for obj in objs:
             objects.append(obj)
@@ -158,14 +158,14 @@ def tick(hashes):
         j2template = j2environment.from_string(source=template.get("value"))
         j2result = j2template.render(objects=objects, controller=controller, ownerReferences=OWNERREFERENCES, managedBy=MANAGEDBY)
       except jinja2.exceptions.TemplateError as e:
-        logging.error(f'Controller "{controller["metadata"]["name"]}" unable to render template "{template.get("name")}" ({e}), skipping this template')
+        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to render template "{template.get("name")}" ({e}), skipping this template')
         hashes[controller["metadata"]["name"]] = ''
         continue
 
       try:
         renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
       except yaml.parser.ParserError as e:
-        logging.error(f'Controller "{controller["metadata"]["name"]}" unable to load rendered template "{template.get("name")}" ({e}), skipping this template')
+        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template "{template.get("name")}" ({e}), skipping this template')
         hashes[controller["metadata"]["name"]] = ''
         continue
       
@@ -173,7 +173,7 @@ def tick(hashes):
         try:
           body = yaml.dump(render)
         except yaml.parser.ParserError as e:
-          logging.error(f'Controller "{controller["metadata"]["name"]}" unable to dump loaded and rendered template "{template.get("name")}" ({e}), skipping this template')
+          logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to dump loaded and rendered template "{template.get("name")}" ({e}), skipping this template')
           hashes[controller["metadata"]["name"]] = ''
           continue
         if DEBUG or False:
