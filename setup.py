@@ -21,5 +21,12 @@ setuptools.setup(
   python_requires='>=3.6',
   entry_points = {
     'console_scripts': ['alfa-controllr=alfa_controllr.__cli__:main'],
-  }
+  },
+  install_requires=[
+    'jinja2_ansible_filters',
+    'jmespath',
+    'kubernetes',
+    'netaddr',
+    'schedule'
+  ]
 )
