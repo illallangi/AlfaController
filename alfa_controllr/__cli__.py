@@ -184,7 +184,7 @@ def tick(hashes):
 
       try:
         renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
-      except yaml.parser.ParserError as e:
+      except (yaml.parser.ParserError,yaml.scanner.ScannerError) as e:
         logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template "{template.get("name")}" ({e}), skipping this template')
         hashes[controller["metadata"]["name"]] = ''
         continue
