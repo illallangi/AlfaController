@@ -27,6 +27,9 @@ spec:
                   secret:
                     default: false
                     type: boolean
+                  service:
+                    default: false
+                    type: boolean
                 type: object
               crds:
                 items:
