@@ -11,6 +11,9 @@ import schedule
 import six
 import time
 import yaml
+import jmespath
+
+from netaddr import IPAddress
 from subprocess import PIPE, run
 
 DEBUG           = bool(distutils.util.strtobool(os.environ.get('DEBUG', 'no')))
@@ -49,9 +52,12 @@ def tick(hashes):
   #apiextensionsV1Api = kubernetes.client.ApiextensionsV1Api()
   ### END FIXME
   customObjectsApi = kubernetes.client.CustomObjectsApi()
-  j2environment = jinja2.Environment(loader=jinja2.BaseLoader)
+  j2environment = jinja2.Environment(loader=jinja2.BaseLoader, extensions=['jinja2_ansible_filters.AnsibleCoreFiltersExtension'])
   # add b64decode filter to jinja2 env
   j2environment.filters['b64decode'] = base64.b64decode
+  j2environment.filters['ipaddr'] = ipaddr
+  j2environment.filters['json_query'] = json_query
+  j2environment.filters['unique_dict'] = unique_dict
   
   # Retrieve Namespaces
   logging.info('Retrieving Namespaces:')
@@ -68,6 +74,15 @@ def tick(hashes):
     secrets = (coreV1Api.list_secret_for_all_namespaces().items or [])
   except kubernetes.client.rest.ApiException as e:
     logging.warning('   - Unable to retrieve secrets, aborting')
+    logging.info(e)
+    return
+  
+  # Retrieve Services
+  logging.info('Retrieving Services:')
+  try:
+    services = (coreV1Api.list_service_for_all_namespaces().items or [])
+  except kubernetes.client.rest.ApiException as e:
+    logging.warning('   - Unable to retrieve services, aborting')
     logging.info(e)
     return
   
@@ -100,12 +115,17 @@ def tick(hashes):
     if (controller['spec'].get('core') or {}).get('namespace') or False:
       for ns in nss:
         obj = coreV1Api.read_namespace(ns.metadata.name)
-        objects.append(obj)
+        objects.append(obj.to_dict())
     
     if (controller['spec'].get('core') or {}).get('secret') or False:
       for secret in secrets:
         obj = coreV1Api.read_namespaced_secret(secret.metadata.name, secret.metadata.namespace)
-        objects.append(obj)
+        objects.append(obj.to_dict())
+    
+    if (controller['spec'].get('core') or {}).get('service') or False:
+      for service in services:
+        obj = coreV1Api.read_namespaced_service(service.metadata.name, service.metadata.namespace)
+        objects.append(obj.to_dict())
     
     # Retrieve CustomResourceDefinitions
     logging.info(' - Retrieving CustomResourceDefinitions')
@@ -164,7 +184,7 @@ def tick(hashes):
 
       try:
         renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
-      except yaml.parser.ParserError as e:
+      except (yaml.parser.ParserError,yaml.scanner.ScannerError) as e:
         logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template "{template.get("name")}" ({e}), skipping this template')
         hashes[controller["metadata"]["name"]] = ''
         continue
@@ -191,6 +211,18 @@ def string_representer(dumper, value):
     return dumper.represent_scalar("tag:yaml.org,2002:str", value, style="'")
   return dumper.represent_scalar("tag:yaml.org,2002:str", value)
 yaml.Dumper.add_representer(six.text_type, string_representer)
+
+def json_query(v, f):
+  return jmespath.search(f, v)
+
+def unique_dict(v):
+  result = [dict(s) for s in set(frozenset(d.items()) for d in v)]
+  return result
+
+def ipaddr(value, action):
+  if action == "revdns":
+    return IPAddress(value).reverse_dns.strip('.')
+  raise NotImplementedError
 
 if __name__ == "__main__":
   main()
