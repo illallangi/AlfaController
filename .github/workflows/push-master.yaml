@@ -1,5 +1,5 @@
 ---
-name: Response to a Push on Master
+name: Build
 on:
   push:
     branches:
