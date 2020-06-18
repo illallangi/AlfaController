@@ -52,7 +52,7 @@ def tick(hashes):
   #apiextensionsV1Api = kubernetes.client.ApiextensionsV1Api()
   ### END FIXME
   customObjectsApi = kubernetes.client.CustomObjectsApi()
-  j2environment = jinja2.Environment(loader=jinja2.BaseLoader)
+  j2environment = jinja2.Environment(loader=jinja2.BaseLoader, extensions=['jinja2_ansible_filters.AnsibleCoreFiltersExtension'])
   # add b64decode filter to jinja2 env
   j2environment.filters['b64decode'] = base64.b64decode
   j2environment.filters['ipaddr'] = ipaddr
