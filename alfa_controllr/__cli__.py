@@ -224,7 +224,6 @@ def json_query(v, f):
 
 def unique_dict(v):
   return list(yaml.load(y, Loader=yaml.FullLoader) for y in set(yaml.dump(d) for d in v))
-  return result
 
 def is_superset(v, subset):
   return is_subset(subset, v)
