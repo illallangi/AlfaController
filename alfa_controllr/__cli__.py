@@ -89,11 +89,16 @@ def tick(hashes):
   controllers = []  
   if CONTROLLERS:
     with open(os.path.realpath(CONTROLLERS), 'r') as file:
-      objs = yaml.load(file, Loader=yaml.FullLoader).get('items') or []
-      for obj in objs:
-        if not obj['kind']=='AlfaControllr': continue
-        controllers.append(obj)
+      yamlControllers = yaml.load(file, Loader=yaml.FullLoader)
+      if yamlControllers['apiVersion'] == "v1beta3" and yamlControllers['kind'] == "List":
+        for obj in yamlControllers.get('items') or []:
+          if not obj['kind']=='AlfaControllr': continue
+          controllers.append(obj)
+      if yamlControllers['apiVersion'] == "controllers.illallangi.enterprises/v1beta" and yamlControllers['kind'] == "AlfaControllr":
+        controllers.append(yamlControllers)
     logging.info(f'Loaded {len(controllers)} Alfa Controllrs from {os.path.realpath(CONTROLLERS)}')
+    for controller in controllers:
+      logging.debug(f' - {controller["metadata"]["name"]}')
   else:
     for ns in nss:
       try:
@@ -105,7 +110,7 @@ def tick(hashes):
         if not obj['kind']=='AlfaControllr': continue
         controllers.append(obj)
     logging.info(f'Loaded {len(controllers)} Alfa Controllrs from Kubernetes API')
-    
+  
   for controller in controllers:
     logging.info(f'Alfa Controllr "{controller["metadata"]["name"]}":')
     
