@@ -221,7 +221,7 @@ def json_query(v, f):
   return jmespath.search(f, v)
 
 def unique_dict(v):
-  result = [dict(s) for s in set(frozenset(d.items()) for d in v)]
+  return list(yaml.load(y, Loader=yaml.FullLoader) for y in set(yaml.dump(d) for d in v))
   return result
 
 def ipaddr(value, action):
