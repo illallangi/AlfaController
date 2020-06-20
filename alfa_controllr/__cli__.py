@@ -58,6 +58,8 @@ def tick(hashes):
   j2environment.filters['ipaddr'] = ipaddr
   j2environment.filters['json_query'] = json_query
   j2environment.filters['unique_dict'] = unique_dict
+  j2environment.tests['is_subset'] = is_subset
+  j2environment.tests['is_superset'] = is_superset
   
   # Retrieve Namespaces
   logging.info('Retrieving Namespaces:')
@@ -222,6 +224,24 @@ def json_query(v, f):
 
 def unique_dict(v):
   result = [dict(s) for s in set(frozenset(d.items()) for d in v)]
+  return result
+
+def is_superset(v, subset):
+  return is_subset(subset, v)
+
+# https://stackoverflow.com/posts/18335110/timeline
+# cc-by-sa 4.0
+def is_subset(v, superset):
+  try:
+    for key, value in v.items():
+      if type(value) is dict:
+        result = is_subset(value, superset[key])
+        assert result
+      else:
+        assert superset[key] == value
+        result = True
+  except (AssertionError, KeyError):
+    result = False
   return result
 
 def ipaddr(value, action):
