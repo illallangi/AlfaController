@@ -170,7 +170,7 @@ def tick(hashes):
       logging.warning(f' - 0 objects found, aborting')
       continue
     
-    objectsHash = hashlib.sha256((yaml.dump(objects) + yaml.dump(controller['spec'])).encode('utf-8')).hexdigest()
+    objectsHash = hashlib.sha256((yaml.dump(objects) + yaml.dump(controller['metadata']) + yaml.dump(controller['spec'])).encode('utf-8')).hexdigest()
     if objectsHash == (hashes.get(controller["metadata"]["name"]) or ''):
       logging.info(f' - {len(objects)} found objects have unchanged hash {objectsHash}, aborting')
       continue
