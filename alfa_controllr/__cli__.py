@@ -102,15 +102,14 @@ def tick(hashes):
     for controller in controllers:
       logging.debug(f' - {controller["metadata"]["name"]}')
   else:
-    for ns in nss:
-      try:
-        objs = (customObjectsApi.list_namespaced_custom_object('controllers.illallangi.enterprises', 'v1beta', ns.metadata.name, 'alfacontrollrs').get('items') or [])
-      except kubernetes.client.rest.ApiException as e:
-        logging.error(f'Unable to get Alfa Controllrs ({e.reason}) in {ns.metadata.name}, skipping this namespace')
-        continue
-      for obj in objs:
-        if not obj['kind']=='AlfaControllr': continue
-        controllers.append(obj)
+    objs = []
+    try:
+      objs = (customObjectsApi.list_cluster_custom_object('controllers.illallangi.enterprises', 'v1beta', 'alfacontrollrs').get('items') or [])
+    except kubernetes.client.rest.ApiException as e:
+      logging.error(f'Unable to get Alfa Controllrs ({e.reason})')
+    for obj in objs:
+      if not obj['kind']=='AlfaControllr': continue
+      controllers.append(obj)
     logging.info(f'Loaded {len(controllers)} Alfa Controllrs from Kubernetes API')
   
   for controller in controllers:
