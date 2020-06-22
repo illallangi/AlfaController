@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dns-system
+
+---
+apiVersion: controllers.illallangi.enterprises/v1beta
+kind: AlfaControllr
+metadata:
+  name: rpz-zone
+spec:
+  core:
+    service: true
+  template: |-
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: rpz-zone
+      namespace: dns-system
+    data:
+      rpz.local.rpz: |
+        $TTL 1m;
+        $ORIGIN rpz.local.;
+        @         SOA   ns.local. nsadmin@local ( 1 3600 600 604800 1800 )
+                  NS    ns.local.
+    {%- for svc in (objects | selectattr('kind', 'equalto', 'Service') | list | json_query('[?metadata.annotations."ddnsupdatr.illallangi.enterprises/domain"].{namespace: metadata.namespace, name: metadata.name, domain: metadata.annotations."ddnsupdatr.illallangi.enterprises/domain",cname: metadata.annotations."ddnsupdatr.illallangi.enterprises/cname",ip: status.load_balancer.ingress[0].ip}')) | list | unique_dict | sort(attribute='domain') %}
+        _k8s.{{ svc.domain }} TXT "namespace={{ svc.namespace }}, name={{ svc.name }}"
+    {%- endfor %}
+    {%- for svc in (objects | selectattr('kind', 'equalto', 'Service') | list | json_query('[?metadata.annotations."ddnsupdatr.illallangi.enterprises/domain"].{domain: metadata.annotations."ddnsupdatr.illallangi.enterprises/domain",cname: metadata.annotations."ddnsupdatr.illallangi.enterprises/cname",ip: status.load_balancer.ingress[0].ip}')) | list | unique_dict | sort(attribute='domain') %}
+    {%- if svc.ip is not none and svc.cname is none %}
+        {{ svc.domain }} A {{ svc.ip }}
+    {%- endif %}
+    {%- endfor %}
+    {%- for svc in (objects | selectattr('kind', 'equalto', 'Service') | list | json_query('[?metadata.annotations."ddnsupdatr.illallangi.enterprises/domain"].{domain: metadata.annotations."ddnsupdatr.illallangi.enterprises/domain",cname: metadata.annotations."ddnsupdatr.illallangi.enterprises/cname",ip: status.load_balancer.ingress[0].ip}')) | list | unique_dict | sort(attribute='domain') %}
+    {%- if svc.ip is not none and svc.cname is none %}
+        {{ svc.ip | ipaddr('revdns') }} PTR {{ svc.domain }}.
+    {%- endif %}
+    {%- endfor %}
+    {%- for svc in (objects | selectattr('kind', 'equalto', 'Service') | list | json_query('[?metadata.annotations."ddnsupdatr.illallangi.enterprises/domain"].{domain: metadata.annotations."ddnsupdatr.illallangi.enterprises/domain",cname: metadata.annotations."ddnsupdatr.illallangi.enterprises/cname",ip: status.load_balancer.ingress[0].ip}')) | list | unique_dict | sort(attribute='domain') %}
+    {%- if svc.cname is not none %}
+    {%- if objects | selectattr('kind', 'equalto', 'Service') | list | json_query('[?metadata.annotations."ddnsupdatr.illallangi.enterprises/domain"].{namespace: metadata.namespace, name: metadata.name, domain: metadata.annotations."ddnsupdatr.illallangi.enterprises/domain",cname: metadata.annotations."ddnsupdatr.illallangi.enterprises/cname",ip: status.load_balancer.ingress[0].ip}') | selectattr('domain', 'equalto', svc.cname) | list | length == 1 %}
+        {{ svc.domain }} A {{ (((objects | selectattr('kind', 'equalto', 'Service') | list | json_query('[?metadata.annotations."ddnsupdatr.illallangi.enterprises/domain"].{namespace: metadata.namespace, name: metadata.name, domain: metadata.annotations."ddnsupdatr.illallangi.enterprises/domain",cname: metadata.annotations."ddnsupdatr.illallangi.enterprises/cname",ip: status.load_balancer.ingress[0].ip}')) | selectattr('domain', 'equalto', svc.cname) | list)[0] | default({})).ip | default('127.0.0.1') }}
+    {%- else %}
+        {{ svc.domain }} CNAME {{ svc.cname }}.
+    {%- endif %}
+    {%- endif %}
+    {%- endfor %}
