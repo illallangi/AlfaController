@@ -58,6 +58,8 @@ def tick(hashes):
   j2environment.filters['ipaddr'] = ipaddr
   j2environment.filters['json_query'] = json_query
   j2environment.filters['unique_dict'] = unique_dict
+  j2environment.tests['is_subset'] = is_subset
+  j2environment.tests['is_superset'] = is_superset
   
   # Retrieve Namespaces
   logging.info('Retrieving Namespaces:')
@@ -89,23 +91,27 @@ def tick(hashes):
   controllers = []  
   if CONTROLLERS:
     with open(os.path.realpath(CONTROLLERS), 'r') as file:
-      objs = yaml.load(file, Loader=yaml.FullLoader).get('items') or []
-      for obj in objs:
-        if not obj['kind']=='AlfaControllr': continue
-        controllers.append(obj)
+      yamlControllers = yaml.load(file, Loader=yaml.FullLoader)
+      if yamlControllers['apiVersion'] == "v1beta3" and yamlControllers['kind'] == "List":
+        for obj in yamlControllers.get('items') or []:
+          if not obj['kind']=='AlfaControllr': continue
+          controllers.append(obj)
+      if yamlControllers['apiVersion'] == "controllers.illallangi.enterprises/v1beta" and yamlControllers['kind'] == "AlfaControllr":
+        controllers.append(yamlControllers)
     logging.info(f'Loaded {len(controllers)} Alfa Controllrs from {os.path.realpath(CONTROLLERS)}')
+    for controller in controllers:
+      logging.debug(f' - {controller["metadata"]["name"]}')
   else:
-    for ns in nss:
-      try:
-        objs = (customObjectsApi.list_namespaced_custom_object('controllers.illallangi.enterprises', 'v1beta', ns.metadata.name, 'alfacontrollrs').get('items') or [])
-      except kubernetes.client.rest.ApiException as e:
-        logging.error(f'Unable to get Alfa Controllrs ({e.reason}) in {ns.metadata.name}, skipping this namespace')
-        continue
-      for obj in objs:
-        if not obj['kind']=='AlfaControllr': continue
-        controllers.append(obj)
+    objs = []
+    try:
+      objs = (customObjectsApi.list_cluster_custom_object('controllers.illallangi.enterprises', 'v1beta', 'alfacontrollrs').get('items') or [])
+    except kubernetes.client.rest.ApiException as e:
+      logging.error(f'Unable to get Alfa Controllrs ({e.reason})')
+    for obj in objs:
+      if not obj['kind']=='AlfaControllr': continue
+      controllers.append(obj)
     logging.info(f'Loaded {len(controllers)} Alfa Controllrs from Kubernetes API')
-    
+  
   for controller in controllers:
     logging.info(f'Alfa Controllr "{controller["metadata"]["name"]}":')
     
@@ -164,43 +170,43 @@ def tick(hashes):
       logging.warning(f' - 0 objects found, aborting')
       continue
     
-    objectsHash = hashlib.sha256((yaml.dump(objects) + yaml.dump(controller['spec'].get('templates') or [])).encode('utf-8')).hexdigest()
+    objectsHash = hashlib.sha256((yaml.dump(objects) + yaml.dump(controller['spec'])).encode('utf-8')).hexdigest()
     if objectsHash == (hashes.get(controller["metadata"]["name"]) or ''):
       logging.info(f' - {len(objects)} found objects have unchanged hash {objectsHash}, aborting')
       continue
     hashes[controller["metadata"]["name"]] = objectsHash
     
     logging.info(f' - {len(objects)} found objects have changed hash {objectsHash}, applying')
-    for template in (controller['spec'].get('templates') or []):
-      logging.info(f'Applying template {template.get("name")}')
+    template = controller['spec']['template']
+    logging.info(f'Applying template')
 
+    try:
+      j2template = j2environment.from_string(source=template)
+      j2result = j2template.render(objects=objects, controller=controller, ownerReferences=OWNERREFERENCES, managedBy=MANAGEDBY)
+    except jinja2.exceptions.TemplateError as e:
+      logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to render template ({e}), aborting')
+      hashes[controller["metadata"]["name"]] = ''
+      continue
+
+    try:
+      renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
+    except (yaml.parser.ParserError,yaml.scanner.ScannerError) as e:
+      logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template ({e}), aborting')
+      hashes[controller["metadata"]["name"]] = ''
+      continue
+    
+    for render in renders:
       try:
-        j2template = j2environment.from_string(source=template.get("value"))
-        j2result = j2template.render(objects=objects, controller=controller, ownerReferences=OWNERREFERENCES, managedBy=MANAGEDBY)
-      except jinja2.exceptions.TemplateError as e:
-        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to render template "{template.get("name")}" ({e}), skipping this template')
+        body = yaml.dump(render)
+      except yaml.parser.ParserError as e:
+        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to dump loaded and rendered template ({e}), aborting')
         hashes[controller["metadata"]["name"]] = ''
         continue
-
-      try:
-        renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
-      except (yaml.parser.ParserError,yaml.scanner.ScannerError) as e:
-        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template "{template.get("name")}" ({e}), skipping this template')
-        hashes[controller["metadata"]["name"]] = ''
-        continue
-      
-      for render in renders:
-        try:
-          body = yaml.dump(render)
-        except yaml.parser.ParserError as e:
-          logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to dump loaded and rendered template "{template.get("name")}" ({e}), skipping this template')
-          hashes[controller["metadata"]["name"]] = ''
-          continue
-        if DEBUG or False:
-          print('---')
-          print(body)
-        else:
-          run(["kubectl", "apply", "-f-"], input=body.encode())
+      if DEBUG or False:
+        print('---')
+        print(body)
+      else:
+        run(["kubectl", "apply", "-f-"], input=body.encode())
 
   print()
 
@@ -216,7 +222,24 @@ def json_query(v, f):
   return jmespath.search(f, v)
 
 def unique_dict(v):
-  result = [dict(s) for s in set(frozenset(d.items()) for d in v)]
+  return list(yaml.load(y, Loader=yaml.FullLoader) for y in set(yaml.dump(d) for d in v))
+
+def is_superset(v, subset):
+  return is_subset(subset, v)
+
+# https://stackoverflow.com/posts/18335110/timeline
+# cc-by-sa 4.0
+def is_subset(v, superset):
+  try:
+    for key, value in v.items():
+      if type(value) is dict:
+        result = is_subset(value, superset[key])
+        assert result
+      else:
+        assert superset[key] == value
+        result = True
+  except (AssertionError, KeyError):
+    result = False
   return result
 
 def ipaddr(value, action):
