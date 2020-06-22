@@ -35,15 +35,8 @@ spec:
                 items:
                   type: string
                 type: array
-              templates:
-                items:
-                  properties:
-                    name:
-                      type: string
-                    value:
-                      type: string
-                  type: object
-                type: array
+              template:
+                type: string
             type: object
         type: object
     served: true
