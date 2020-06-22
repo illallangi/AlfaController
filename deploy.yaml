@@ -10,6 +10,7 @@ spec:
     plural: alfacontrollrs
     shortNames:
     - alfacontrollr
+    - ac
     singular: alfacontrollr
   scope: Cluster
   versions:
