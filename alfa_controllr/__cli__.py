@@ -171,43 +171,43 @@ def tick(hashes):
       logging.warning(f' - 0 objects found, aborting')
       continue
     
-    objectsHash = hashlib.sha256((yaml.dump(objects) + yaml.dump(controller['spec'].get('templates') or [])).encode('utf-8')).hexdigest()
+    objectsHash = hashlib.sha256((yaml.dump(objects) + yaml.dump(controller['spec'])).encode('utf-8')).hexdigest()
     if objectsHash == (hashes.get(controller["metadata"]["name"]) or ''):
       logging.info(f' - {len(objects)} found objects have unchanged hash {objectsHash}, aborting')
       continue
     hashes[controller["metadata"]["name"]] = objectsHash
     
     logging.info(f' - {len(objects)} found objects have changed hash {objectsHash}, applying')
-    for template in (controller['spec'].get('templates') or []):
-      logging.info(f'Applying template {template.get("name")}')
+    template = controller['spec']['template']
+    logging.info(f'Applying template')
 
+    try:
+      j2template = j2environment.from_string(source=template)
+      j2result = j2template.render(objects=objects, controller=controller, ownerReferences=OWNERREFERENCES, managedBy=MANAGEDBY)
+    except jinja2.exceptions.TemplateError as e:
+      logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to render template ({e}), aborting')
+      hashes[controller["metadata"]["name"]] = ''
+      continue
+
+    try:
+      renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
+    except (yaml.parser.ParserError,yaml.scanner.ScannerError) as e:
+      logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template ({e}), aborting')
+      hashes[controller["metadata"]["name"]] = ''
+      continue
+    
+    for render in renders:
       try:
-        j2template = j2environment.from_string(source=template.get("value"))
-        j2result = j2template.render(objects=objects, controller=controller, ownerReferences=OWNERREFERENCES, managedBy=MANAGEDBY)
-      except jinja2.exceptions.TemplateError as e:
-        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to render template "{template.get("name")}" ({e}), skipping this template')
+        body = yaml.dump(render)
+      except yaml.parser.ParserError as e:
+        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to dump loaded and rendered template ({e}), aborting')
         hashes[controller["metadata"]["name"]] = ''
         continue
-
-      try:
-        renders = list(yaml.load_all(j2result, Loader=yaml.FullLoader))
-      except (yaml.parser.ParserError,yaml.scanner.ScannerError) as e:
-        logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to load rendered template "{template.get("name")}" ({e}), skipping this template')
-        hashes[controller["metadata"]["name"]] = ''
-        continue
-      
-      for render in renders:
-        try:
-          body = yaml.dump(render)
-        except yaml.parser.ParserError as e:
-          logging.error(f'Alfa Controllr "{controller["metadata"]["name"]}" unable to dump loaded and rendered template "{template.get("name")}" ({e}), skipping this template')
-          hashes[controller["metadata"]["name"]] = ''
-          continue
-        if DEBUG or False:
-          print('---')
-          print(body)
-        else:
-          run(["kubectl", "apply", "-f-"], input=body.encode())
+      if DEBUG or False:
+        print('---')
+        print(body)
+      else:
+        run(["kubectl", "apply", "-f-"], input=body.encode())
 
   print()
 
